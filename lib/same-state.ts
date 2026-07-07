@@ -60,6 +60,74 @@ function buildPrompt(patient: unknown, observations: unknown): string {
   ].join("\n");
 }
 
+/**
+ * Pull the first diagnostics message out of an OperationOutcome body,
+ * if present. HAPI returns these on validation and compartment-lock
+ * failures — surfacing them in the status log turns a mystery timeout
+ * into an actionable message like "HAPI-1769: Compartment is locked".
+ */
+function extractHapiDiagnostics(body: unknown): string | null {
+  if (typeof body !== "object" || body === null) return null;
+  const outcome = body as {
+    resourceType?: string;
+    issue?: Array<{ diagnostics?: unknown; details?: { text?: unknown } }>;
+  };
+  if (outcome.resourceType !== "OperationOutcome") return null;
+  const first = outcome.issue?.[0];
+  if (typeof first?.diagnostics === "string" && first.diagnostics.length > 0) {
+    return first.diagnostics;
+  }
+  if (
+    typeof first?.details?.text === "string" &&
+    first.details.text.length > 0
+  ) {
+    return first.details.text;
+  }
+  return null;
+}
+
+/**
+ * A deterministic PRNG factory. Each call returns a FRESH closure
+ * seeded with the same starting state — two closures produce the
+ * exact same byte sequence for the same call-index. This is the
+ * "seededRandom" contract that runOne expects: A and B each get their
+ * own closure, but corresponding calls produce equal bytes, so the
+ * `random` option flowing into clinical-receipt's fhirExtension yields
+ * identical commitment digests across the two runs.
+ *
+ * xorshift32 keyed by an SHA-256 slice of the demo salt string — not
+ * cryptographic (that's not the point here) but stable and side-effect-
+ * free. If you inject your own factory, the guarantee is: two calls
+ * that produce the same call-index sequence give identical bytes.
+ */
+function makeSeededRandomFactory(
+  seed: string,
+): () => (byteLength: number) => Uint8Array<ArrayBuffer> {
+  // Fold the seed string into a 32-bit state via multiply-XOR.
+  const initialState = ((): number => {
+    let s = 0x811c9dc5;
+    for (let i = 0; i < seed.length; i += 1) {
+      s ^= seed.charCodeAt(i);
+      s = Math.imul(s, 0x01000193) >>> 0;
+    }
+    return s === 0 ? 0x9e3779b1 : s;
+  })();
+  return () => {
+    let state = initialState;
+    return (byteLength: number): Uint8Array<ArrayBuffer> => {
+      const out = new Uint8Array(byteLength);
+      for (let i = 0; i < byteLength; i += 1) {
+        state ^= state << 13;
+        state ^= state >>> 17;
+        state ^= state << 5;
+        state >>>= 0;
+        out[i] = state & 0xff;
+      }
+      return out as Uint8Array<ArrayBuffer>;
+    };
+  };
+}
+
 function buildImpression(patientId: string, summary: string): {
   resourceType: string;
   status: string;
@@ -86,6 +154,16 @@ async function runOne(
   patientId: string,
   openRouterKey: string,
   input: SameStateInput,
+  /**
+   * A factory that produces a fresh seeded random source. Both runs
+   * call this ONCE to get their own closure — same seed on each call,
+   * counters progress independently but produce the same sequence.
+   * That is the exact protocol the clinical-receipt v0.2.2
+   * `fhirExtension({ random })` option expects for identical-input
+   * commitments (see spec/1.0/fhir.md and the same-input-commitment
+   * regression test in the library).
+   */
+  seededRandom: () => (byteLength: number) => Uint8Array<ArrayBuffer>,
 ): Promise<{
   receipt: ClinicalReceipt;
   key: JsonWebKey;
@@ -107,6 +185,9 @@ async function runOne(
   });
   const fhir = fhirExtension(run, {
     server: HAPI_SERVER,
+    // Shared salt sequence: identical FHIR bodies → identical commits
+    // across runs A and B. That is the whole "same input state" claim.
+    random: seededRandom(),
   });
 
   // Level-3 explicit: feed the *same clinical bytes* into both A's and
@@ -181,6 +262,27 @@ async function runOne(
     method: "POST",
     body: impression,
   });
+
+  // The write may have failed. HAPI's public server has compartment
+  // locks on some patients (e.g. HAPI-1769); other errors are typical
+  // FHIR validation issues. Do NOT commit an OperationOutcome as if
+  // it were a persisted ClinicalImpression — that would render as a
+  // fake successful write in the diff panel and quietly erase the
+  // "the write failed" signal from the receipt.
+  const responseType =
+    typeof (created.body as { resourceType?: unknown } | undefined)
+      ?.resourceType === "string"
+      ? ((created.body as { resourceType: string }).resourceType as string)
+      : undefined;
+  if (created.status >= 400 || responseType !== "ClinicalImpression") {
+    const diagnostics = extractHapiDiagnostics(created.body);
+    const summary =
+      diagnostics !== null
+        ? `HAPI refused the ClinicalImpression write: ${diagnostics}`
+        : `HAPI refused the ClinicalImpression write (status ${created.status}, resourceType=${responseType ?? "unknown"})`;
+    throw new Error(summary);
+  }
+
   const locationHeader = created.location ?? undefined;
   await fhir
     .operation({
@@ -237,6 +339,15 @@ export async function runSameState(input: SameStateInput): Promise<SameStateResu
     })
   ).body;
 
+  // Bind the salt seed to the invocation (patient id + timestamp).
+  // Both runs get their own closure from this factory — same seed,
+  // independent counters → identical byte sequences → identical
+  // FHIR-body commitments across A and B. The "same clinical state"
+  // claim in the diff panel is proven, not asserted.
+  const seededRandom = makeSeededRandomFactory(
+    `same-state:${input.patientId}:${Date.now()}`,
+  );
+
   const a = await runOne(
     "A",
     input.modelA,
@@ -245,6 +356,7 @@ export async function runSameState(input: SameStateInput): Promise<SameStateResu
     input.patientId,
     input.openRouterKey,
     input,
+    seededRandom,
   );
   const b = await runOne(
     "B",
@@ -254,6 +366,7 @@ export async function runSameState(input: SameStateInput): Promise<SameStateResu
     input.patientId,
     input.openRouterKey,
     input,
+    seededRandom,
   );
 
   return {
