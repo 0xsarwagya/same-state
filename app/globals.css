@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/* ── design tokens ─────────────────────────────────────────────────
+   Vendored from the family site tokens so this repo stays standalone.
+   If the palette changes upstream, mirror it here — a demo without
+   consistent branding hurts the family it comes from.                */
+:root {
+  --color-paper: #f6f4ef;
+  --color-ink: #0d0d0d;
+  --color-stone: #9b8c73;
+  --color-rust: #a34a3a;
+
+  --font-serif: var(--font-instrument-serif, "Instrument Serif"),
+    "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-mono: var(--font-geist-mono, "Geist Mono"),
+    ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+}
+
+html[data-theme="dark"] {
+  --color-paper: #0f0e0c;
+  --color-ink: #eae5d9;
+  --color-stone: #7a7060;
+  --color-rust: #d67c67;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    --color-paper: #0f0e0c;
+    --color-ink: #eae5d9;
+    --color-stone: #7a7060;
+    --color-rust: #d67c67;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--color-paper);
+  --color-ink: var(--color-ink);
+  --color-stone: var(--color-stone);
+  --color-rust: var(--color-rust);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+}
+
+/* ── base ─────────────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  min-height: 100dvh;
+}
+
+/* ── utilities ────────────────────────────────────────────────────── */
+.label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-stone);
+}
+
+.hairline {
+  border-color: color-mix(in oklab, var(--color-ink) 12%, transparent);
+}
+
+/* ── entrance animation ──────────────────────────────────────────────
+   Fade + slide-up over 0.9s. Stagger children with .rise-1 / .rise-2.
+   Respects prefers-reduced-motion.                                     */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  opacity: 0;
+  animation: rise 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+.rise-1 {
+  animation-delay: 0.1s;
+}
+.rise-2 {
+  animation-delay: 0.22s;
+}
+.rise-3 {
+  animation-delay: 0.34s;
+}
+.rise-4 {
+  animation-delay: 0.46s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .rise-1,
+  .rise-2,
+  .rise-3,
+  .rise-4 {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── selection ────────────────────────────────────────────────────── */
+::selection {
+  background: color-mix(in oklab, var(--color-rust) 25%, transparent);
+  color: var(--color-ink);
+}

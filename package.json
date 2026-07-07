@@ -1,0 +1,43 @@
+{
+  "name": "same-state",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Same clinical state. Different model. Verifiable difference. A demo of @0xsarwagya/clinical-receipt.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Sarwagya Singh <sarwagya@actimi.com>",
+  "homepage": "https://same-state.sarwagya.wtf",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0xsarwagya/same-state.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "check-types": "next typegen && tsc --noEmit",
+    "lint": "eslint --max-warnings 0"
+  },
+  "dependencies": {
+    "@0xsarwagya/clinical-receipt": "^0.2.0",
+    "next": "16.2.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "16.2.0",
+    "eslint-plugin-react": "^7.37.5",
+    "tailwindcss": "^4.0.0",
+    "typescript": "5.9.2",
+    "typescript-eslint": "^8.29.1"
+  }
+}
