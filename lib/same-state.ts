@@ -166,7 +166,10 @@ async function runOne(
       model: modelActual,
       content: output,
       finishReason: completion.choices[0]?.finish_reason ?? "unknown",
-      usage: completion.usage,
+      // Free-tier providers occasionally omit `usage`; JCS rejects
+      // undefined values in the canonicalized payload, so only include
+      // it when the response actually carries one.
+      ...(completion.usage !== undefined ? { usage: completion.usage } : {}),
     },
     mode: "embedded",
     embed: true,
@@ -196,8 +199,10 @@ async function runOne(
     value: {
       summaryLength: output.length,
       // Reference into HAPI — the actual bytes were already committed
-      // through the FHIR write event above.
-      location: locationHeader,
+      // through the FHIR write event above. Only include the location
+      // when the server returned one; JCS strictly rejects undefined
+      // (there is no JSON representation for it).
+      ...(locationHeader !== undefined ? { location: locationHeader } : {}),
     },
     mode: "embedded",
     embed: true,
