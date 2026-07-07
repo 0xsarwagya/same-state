@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { listModels, type OpenRouterModel } from "@/lib/openrouter";
+import {
+  isFreeModel,
+  listModels,
+  type OpenRouterModel,
+} from "@/lib/openrouter";
 
 interface ModelPickerProps {
   label: string;
@@ -20,6 +24,7 @@ export function ModelPicker({
   const [models, setModels] = useState<OpenRouterModel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [freeOnly, setFreeOnly] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,29 +54,62 @@ export function ModelPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRouterKey.length > 0]);
 
+  const visibleModels = useMemo(
+    () => (freeOnly ? models.filter(isFreeModel) : models),
+    [models, freeOnly],
+  );
+
+  const selectedIsFree = useMemo(() => {
+    const match = models.find((model) => model.id === value);
+    return match !== undefined && isFreeModel(match);
+  }, [models, value]);
+
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-4">
         <span className="label">{label}</span>
-        {loading ? <span className="label">loading…</span> : null}
+        <div className="flex items-center gap-3">
+          {loading ? <span className="label">loading…</span> : null}
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-ink/70">
+            <input
+              type="checkbox"
+              checked={freeOnly}
+              onChange={(event) => setFreeOnly(event.target.checked)}
+              className="h-3 w-3 accent-rust"
+            />
+            <span className="label">Free only</span>
+          </label>
+        </div>
       </div>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="rounded border border-ink/20 bg-transparent px-3 py-2 font-mono text-sm text-ink focus:border-rust focus:outline-none"
       >
-        {/* If the current value isn't in the fetched list, still show it. */}
-        {!models.some((model) => model.id === value) && value.length > 0 ? (
+        {/* If the current value isn't in the visible list, still show it — a
+            user's chosen model must never disappear behind a filter. */}
+        {!visibleModels.some((model) => model.id === value) &&
+        value.length > 0 ? (
           <option value={value}>{value}</option>
         ) : null}
-        {models.map((model) => (
+        {visibleModels.map((model) => (
           <option key={model.id} value={model.id}>
             {model.id}
           </option>
         ))}
       </select>
-      {error !== null ? (
-        <p className="text-xs text-rust">{error}</p>
+      {error !== null ? <p className="text-xs text-rust">{error}</p> : null}
+      {selectedIsFree ? (
+        <p className="text-xs italic text-stone">
+          Free tier — rate-limited by OpenRouter and can 429 or 503 without
+          warning.
+        </p>
+      ) : null}
+      {freeOnly && !loading && visibleModels.length === 0 ? (
+        <p className="text-xs italic text-stone">
+          No free models returned. OpenRouter&apos;s free pool changes; try
+          again without the filter.
+        </p>
       ) : null}
     </div>
   );

@@ -41,6 +41,21 @@ export interface OpenRouterModel {
   };
 }
 
+/**
+ * A model is "free" when OpenRouter reports zero prompt AND zero
+ * completion cost. Almost every free model on OpenRouter carries a
+ * `:free` suffix on its slug, but the pricing rule is authoritative —
+ * a couple of preview slugs (e.g. some Google Lyria variants) match
+ * without the suffix.
+ *
+ * Free-tier models are subject to shared per-minute / per-day request
+ * caps at OpenRouter and can 429 or 503 without warning; surface that
+ * caveat in the UI wherever a `:free` slug is used.
+ */
+export function isFreeModel(model: OpenRouterModel): boolean {
+  return model.pricing?.prompt === "0" && model.pricing?.completion === "0";
+}
+
 function keyHeader(key: string | null): Record<string, string> {
   return key === null || key.length === 0 ? {} : { "x-openrouter-key": key };
 }
