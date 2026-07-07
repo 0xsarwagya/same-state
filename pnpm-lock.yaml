@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@0xsarwagya/clinical-receipt':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.2.1
+        version: 0.2.1
       next:
         specifier: 16.2.0
         version: 16.2.0(@babel/core@7.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -57,8 +57,8 @@ importers:
 
 packages:
 
-  '@0xsarwagya/clinical-receipt@0.2.0':
-    resolution: {integrity: sha512-AwHgsesaA2k8rMjTv5SsmZzV3HpL99GE4fl3oVOd5kFPTbF7vKVwzVypDhEApRuTjLRPKaMW/Mj3lvcs4fiyhA==}
+  '@0xsarwagya/clinical-receipt@0.2.1':
+    resolution: {integrity: sha512-c7AD3FkjXLupBrFAaU5dvwD+N+NNSsf+AxADhGr8bFOl7FNBI7w5JpOzTutMA4hieFZ8IEXpZoyCvn1wuUDb/Q==}
     engines: {node: '>=20'}
     hasBin: true
 
@@ -2005,7 +2005,7 @@ packages:
 
 snapshots:
 
-  '@0xsarwagya/clinical-receipt@0.2.0': {}
+  '@0xsarwagya/clinical-receipt@0.2.1': {}
 
   '@alloc/quick-lru@5.2.0': {}
 
