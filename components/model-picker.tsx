@@ -74,7 +74,15 @@ export function ModelPicker({
             <input
               type="checkbox"
               checked={freeOnly}
-              onChange={(event) => setFreeOnly(event.target.checked)}
+              onChange={(event) => {
+                const next = event.target.checked;
+                setFreeOnly(next);
+                // Turning "Free only" on jumps the selection to
+                // OpenRouter's auto-routed free model. Cheaper by
+                // default, and the caller doesn't have to hunt through
+                // the filtered list to pick something valid.
+                if (next) onChange("openrouter/free");
+              }}
               className="h-3 w-3 accent-rust"
             />
             <span className="label">Free only</span>
