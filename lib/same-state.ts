@@ -128,21 +128,39 @@ function makeSeededRandomFactory(
   };
 }
 
-function buildImpression(patientId: string, summary: string): {
+function buildImpression(
+  patientId: string,
+  summary: string,
+  model: string,
+): {
   resourceType: string;
   status: string;
   subject: { reference: string };
   summary: string;
   effectiveDateTime: string;
+  identifier: Array<{ system: string; value: string }>;
+  note: Array<{ text: string }>;
 } {
-  // ISO date is deterministic enough for a demo receipt; the server
-  // assigns its own lastUpdated and versionId on write anyway.
+  // Distinguish A from B on the wire: HAPI's newer duplicate detection
+  // (HAPI-2840) treats structurally identical impressions with the same
+  // subject + status + effectiveDateTime as duplicates. Using the exact
+  // write-time timestamp plus the model name in an identifier and a
+  // note guarantees the two writes are always distinct — no matter how
+  // similar the model outputs happen to be.
+  const nowIso = new Date().toISOString();
   return {
     resourceType: "ClinicalImpression",
     status: "completed",
     subject: { reference: `Patient/${patientId}` },
     summary,
-    effectiveDateTime: "2026-07-07T00:00:00Z",
+    effectiveDateTime: nowIso,
+    identifier: [
+      {
+        system: "https://same-state.sarwagya.wtf/run",
+        value: `${model}::${nowIso}`,
+      },
+    ],
+    note: [{ text: `Same-State run — model: ${model}` }],
   };
 }
 
@@ -257,7 +275,10 @@ async function runOne(
   });
 
   emit(`writing ClinicalImpression`);
-  const impression = buildImpression(patientId, output);
+  // Pass modelActual — HAPI-2840 dedup depends on the impression bodies
+  // being structurally distinct between A and B. The model name in the
+  // identifier + note plus a wall-clock effectiveDateTime guarantees it.
+  const impression = buildImpression(patientId, output, modelActual);
   const created = await fhirRequest(`/ClinicalImpression`, {
     method: "POST",
     body: impression,
