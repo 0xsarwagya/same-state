@@ -1,3 +1,7 @@
+# Single-app repo — declare `packages` so `pnpm store path`, used by
+# actions/setup-node's cache, does not error out on the empty workspace.
+packages:
+  - .
 allowBuilds:
   sharp: false
   unrs-resolver: false
