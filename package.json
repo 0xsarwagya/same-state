@@ -24,6 +24,7 @@
   "dependencies": {
     "@0xsarwagya/clinical-receipt": "^0.2.2",
     "next": "16.2.0",
+    "posthog-js": "^1.399.4",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
